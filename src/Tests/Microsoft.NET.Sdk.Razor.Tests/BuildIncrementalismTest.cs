@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
@@ -233,120 +234,6 @@ namespace Microsoft.NET.Sdk.Razor.Tests
         }
 
         [Fact]
-        public void BuildComponents_RegeneratesComponentDefinition_WhenFilesChange()
-        {
-            var testAsset = "RazorMvcWithComponents";
-            var projectDirectory = CreateRazorSdkTestAsset(testAsset);
-
-            var build = new BuildCommand(projectDirectory);
-
-            var intermediateOutputPath = build.GetIntermediateDirectory(DefaultTfm, "Debug").ToString();
-            var outputPath = build.GetOutputDirectory(DefaultTfm, "Debug").ToString();
-
-            // Act - 1
-            var updatedContent = "@code { [Parameter] public string AParameter { get; set; } }";
-            var tagHelperOutputCache = Path.Combine(intermediateOutputPath, "MvcWithComponents.TagHelpers.output.cache");
-
-            var generatedFile = Path.Combine(intermediateOutputPath, "Razor", "Views", "Shared", "NavMenu.razor.g.cs");
-            var generatedDefinitionFile = Path.Combine(intermediateOutputPath, "RazorDeclaration", "Views", "Shared", "NavMenu.razor.g.cs");
-
-            // Assert - 1
-            var result = build.Execute();
-
-            result.Should().Pass();
-            var outputFile = Path.Combine(outputPath, "MvcWithComponents.dll");
-            new FileInfo(outputFile).Should().Exist();
-            var outputAssemblyThumbprint = FileThumbPrint.Create(outputFile);
-
-            new FileInfo(generatedDefinitionFile).Should().Exist();
-            var generatedDefinitionThumbprint = FileThumbPrint.Create(generatedDefinitionFile);
-            new FileInfo(generatedFile).Should().Exist();
-            var generatedFileThumbprint = FileThumbPrint.Create(generatedFile);
-
-            new FileInfo(tagHelperOutputCache).Should().Exist();
-            new FileInfo(tagHelperOutputCache).Should().Contain(@"""Name"":""MvcWithComponents.Views.Shared.NavMenu""");
-
-            var definitionThumbprint = FileThumbPrint.Create(tagHelperOutputCache);
-
-            // Act - 2
-            var page = Path.Combine(projectDirectory.Path, "Views", "Shared", "NavMenu.razor");
-            File.WriteAllText(page, updatedContent);
-
-            build = new BuildCommand(projectDirectory);
-            result = build.Execute();
-
-            // Assert - 2
-            new FileInfo(outputFile).Should().Exist();
-            Assert.NotEqual(outputAssemblyThumbprint, FileThumbPrint.Create(outputFile));
-
-            new FileInfo(generatedDefinitionFile).Should().Exist();
-            Assert.NotEqual(generatedDefinitionThumbprint, FileThumbPrint.Create(generatedDefinitionFile));
-            new FileInfo(generatedFile).Should().Exist();
-            Assert.NotEqual(generatedFileThumbprint, FileThumbPrint.Create(generatedFile));
-
-            new FileInfo(tagHelperOutputCache).Should().Exist();
-            new FileInfo(tagHelperOutputCache).Should().Contain(@"""Name"":""MvcWithComponents.Views.Shared.NavMenu""");
-
-            new FileInfo(tagHelperOutputCache).Should().Contain("AParameter");
-
-            Assert.NotEqual(definitionThumbprint, FileThumbPrint.Create(tagHelperOutputCache));
-        }
-
-        [Fact]
-        public void BuildComponents_DoesNotModifyFiles_IfFilesDoNotChange()
-        {
-            var testAsset = "RazorMvcWithComponents";
-            var projectDirectory = CreateRazorSdkTestAsset(testAsset);
-
-            var build = new BuildCommand(projectDirectory);
-
-            var intermediateOutputPath = build.GetIntermediateDirectory(DefaultTfm, "Debug").ToString();
-            var outputPath = build.GetOutputDirectory(DefaultTfm, "Debug").ToString();
-
-            // Act - 1
-            var tagHelperOutputCache = Path.Combine(intermediateOutputPath, "MvcWithComponents.TagHelpers.output.cache");
-
-            var file = Path.Combine(projectDirectory.Path, "Views", "Shared", "NavMenu.razor.g.cs");
-            var generatedFile = Path.Combine(intermediateOutputPath, "Razor", "Views", "Shared", "NavMenu.razor.g.cs");
-            var generatedDefinitionFile = Path.Combine(intermediateOutputPath, "RazorDeclaration", "Views", "Shared", "NavMenu.razor.g.cs");
-
-            // Assert - 1
-            var result = build.Execute();
-
-            result.Should().Pass();
-            var outputFile = Path.Combine(outputPath, "MvcWithComponents.dll");
-            new FileInfo(outputFile).Should().Exist();
-            var outputAssemblyThumbprint = FileThumbPrint.Create(outputFile);
-
-            new FileInfo(generatedDefinitionFile).Should().Exist();
-            var generatedDefinitionThumbprint = FileThumbPrint.Create(generatedDefinitionFile);
-            new FileInfo(generatedFile).Should().Exist();
-            var generatedFileThumbprint = FileThumbPrint.Create(generatedFile);
-
-            new FileInfo(tagHelperOutputCache).Should().Exist();
-            new FileInfo(tagHelperOutputCache).Should().Contain(@"""Name"":""MvcWithComponents.Views.Shared.NavMenu""");
-
-            var definitionThumbprint = FileThumbPrint.Create(tagHelperOutputCache);
-
-            // Act - 2
-            result = build.Execute();
-
-            // Assert - 2
-            new FileInfo(outputFile).Should().Exist();
-            Assert.Equal(outputAssemblyThumbprint, FileThumbPrint.Create(outputFile));
-
-            new FileInfo(generatedDefinitionFile).Should().Exist();
-            Assert.Equal(generatedDefinitionThumbprint, FileThumbPrint.Create(generatedDefinitionFile));
-            new FileInfo(generatedFile).Should().Exist();
-            Assert.Equal(generatedFileThumbprint, FileThumbPrint.Create(generatedFile));
-
-            new FileInfo(tagHelperOutputCache).Should().Exist();
-            new FileInfo(tagHelperOutputCache).Should().Contain(@"""Name"":""MvcWithComponents.Views.Shared.NavMenu""");
-
-            Assert.Equal(definitionThumbprint, FileThumbPrint.Create(tagHelperOutputCache));
-        }
-
-        [Fact]
         public void IncrementalBuild_WithP2P_WorksWhenBuildProjectReferencesIsDisabled()
         {
             // Simulates building the same way VS does by setting BuildProjectReferences=false.
@@ -386,7 +273,7 @@ namespace Microsoft.NET.Sdk.Razor.Tests
             new FileInfo(Path.Combine(outputPath, "ClassLibrary.Views.pdb")).Should().Exist();
         }
 
-        [Fact]
+        [Fact(Skip = "https://github.com/dotnet/aspnetcore/issues/28780")]
         public void Build_TouchesUpToDateMarkerFile()
         {
             var testAsset = "RazorClassLibrary";
@@ -438,6 +325,47 @@ namespace Microsoft.NET.Sdk.Razor.Tests
             Assert.Equal(classLibraryThumbPrint, FileThumbPrint.Create(classLibraryDll));
             Assert.NotEqual(classLibraryViewsThumbPrint, FileThumbPrint.Create(classLibraryViewsDll));
             Assert.NotEqual(markerFileThumbPrint, FileThumbPrint.Create(markerFile));
+        }
+
+        [Fact]
+        public void Build_EmbedRazorGenerateSources_EmbedsCshtmlFiles()
+        {
+            var testAsset = "RazorSimpleMvc";
+            var projectDirectory = CreateRazorSdkTestAsset(testAsset);
+
+            var build = new BuildCommand(projectDirectory);
+            build.Execute("/p:EmbedRazorGenerateSources=true")
+                .Should()
+                .Pass();
+
+            var intermediateOutputPath = build.GetIntermediateDirectory(DefaultTfm).ToString();
+
+            new FileInfo(Path.Combine(intermediateOutputPath, "RazorSimpleMvc.Views.dll")).Should().Exist();
+
+            var assembly = LoadAssemblyFromBytes(intermediateOutputPath, "RazorSimpleMvc.Views.dll");
+            var resources = assembly.GetManifestResourceNames();
+
+            Assert.Equal(new string[]
+            {
+                "/Views/Home/About.cshtml",
+                "/Views/Home/Contact.cshtml",
+                "/Views/Home/Index.cshtml",
+                "/Views/Shared/Error.cshtml",
+                "/Views/Shared/_Layout.cshtml",
+                "/Views/Shared/_ValidationScriptsPartial.cshtml",
+                "/Views/_ViewImports.cshtml",
+                "/Views/_ViewStart.cshtml",
+            },
+            resources.OrderBy(r => r, StringComparer.Ordinal));
+        }
+
+        private Assembly LoadAssemblyFromBytes(params string[] paths)
+        {
+            // We need to load the assembly from bytes to load it without locking the file - and yes, we need to
+            // load the pdb too, or else the CLR will load/lock it based on the path specified in the assembly.
+            var assemblyBytes = File.ReadAllBytes(Path.Combine(paths));
+            var symbolBytes = File.ReadAllBytes(Path.ChangeExtension(Path.Combine(paths), ".pdb"));
+            return Assembly.Load(assemblyBytes, symbolBytes);
         }
 
         private IDisposable LockDirectory(string directory)

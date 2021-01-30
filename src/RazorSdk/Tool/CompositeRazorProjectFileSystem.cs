@@ -27,10 +27,12 @@ namespace Microsoft.NET.Sdk.Razor.Tool
             }
         }
 
+#pragma warning disable 672
         public override RazorProjectItem GetItem(string path)
         {
             return GetItem(path, fileKind: null);
         }
+#pragma warning restore 672
 
         public override RazorProjectItem GetItem(string path, string fileKind)
         {
